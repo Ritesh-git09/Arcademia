@@ -1,7 +1,7 @@
+import asyncio
 import pygame
-import sys
 
-def run_tic_tac_toe(screen):
+async def run_tic_tac_toe(screen):
     SCREEN_WIDTH = screen.get_width()
     SCREEN_HEIGHT = screen.get_height()
     CELL_SIZE = min(SCREEN_WIDTH, SCREEN_HEIGHT) // 9
@@ -18,7 +18,7 @@ def run_tic_tac_toe(screen):
     game_over_font = pygame.font.Font('freesansbold.ttf', 70)
 
     def create_new_board():
-        return [[[[' ' for _ in range(3)] for _ in range(3)] for _ in range(3)] for _ in range(3)], [[' ' for _ in range(3)] for _ in range(3)]
+        return [[[[' ' for _ in range(3)] for _ in range(3)] for _ in range(3)], [[' ' for _ in range(3)] for _ in range(3)]]
 
     def draw_grid():
         for i in range(1, 9):
@@ -89,8 +89,8 @@ def run_tic_tac_toe(screen):
 
     while running:
         for event in pygame.event.get():
-            if event.type == pygame.QUIT: pygame.quit(); sys.exit()
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE: running = False
+            if event.type == pygame.QUIT: return
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE: return
             if event.type == pygame.MOUSEBUTTONDOWN and not game_winner:
                 mouseX, mouseY = event.pos
                 if mouseX < 9 * CELL_SIZE and mouseY < 9 * CELL_SIZE:
@@ -114,5 +114,4 @@ def run_tic_tac_toe(screen):
             draw_game_over(game_winner)
         pygame.display.flip()
         clock.tick(60)
-
-    return
+        await asyncio.sleep(0)

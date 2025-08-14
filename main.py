@@ -1,6 +1,6 @@
+import asyncio
 import pygame
 import sys
-import time
 
 from tic_tac_toe import run_tic_tac_toe
 from space_arcade import run_space_arcade
@@ -38,7 +38,7 @@ try:
     pygame.mixer.music.set_volume(0.5)
     pygame.mixer.music.play(-1)
 except pygame.error as e:
-    print(f"FATAL: Could not load critical asset: {e}")
+    print(f"FATAL asset load: {e}")
     sys.exit()
 
 BOX_WIDTH, BOX_HEIGHT = 300, 400
@@ -55,65 +55,62 @@ space_play_button.center = (space_box_rect.centerx, space_box_rect.bottom - 60)
 ttt_play_button = pygame.Rect(0, 0, 150, 50)
 ttt_play_button.center = (ttt_box_rect.centerx, ttt_box_rect.bottom - 60)
 
-app_state = 'main_menu'
-clock = pygame.time.Clock()
-running = True
-
-def show_loading_screen_until_ready(message, launch_function, *args):
-    """Show animated loading screen until launch_function finishes loading and returns."""
+async def show_loading_screen(message="Loading..."):
+    """Animated loading screen with dots for Pybag"""
+    clock = pygame.time.Clock()
     dot_count = 0
-    loading_complete = False
+    start_time = pygame.time.get_ticks()
+    while pygame.time.get_ticks() - start_time < 800:  # short display before game starts
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return False
+        screen.fill(BLACK)
+        dots = "." * (dot_count % 4)
+        text_surface = assets['loading_font'].render(message + dots, True, WHITE)
+        text_rect = text_surface.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+        screen.blit(text_surface, text_rect)
+        pygame.display.flip()
+        dot_count += 1
+        clock.tick(4)
+        await asyncio.sleep(0)
+    return True
 
-    # We'll spawn a flag changed by launch_function
-    # Launch the game function in a way that loading happens first, then execution
+async def main():
+    clock = pygame.time.Clock()
+    running = True
+    app_state = 'main_menu'
 
-    # To simulate this effectively without threads, call launch_function
-    # just after displaying loading screen for a moment.
-
-    # This example assumes launch_function does all loading instantly,
-    # but you can extend for threaded loading.
-
-    # Display loading animation for at least a short moment for UX
-    start_time = time.time()
-    min_loading_time = 1.0  # seconds minimum
-
-    # Show first frame
-    screen.fill(BLACK)
-    text_surface = assets['loading_font'].render(message, True, WHITE)
-    text_rect = text_surface.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
-    screen.blit(text_surface, text_rect)
-    pygame.display.flip()
-
-    # brief pause to allow user to see loading screen before launch
-    pygame.time.delay(300)
-
-    # Now call the function (e.g. run game) which will run and block here for game duration
-    launch_function(*args)
-
-    # When game returns, loading is complete, so this function ends and control returns.
-
-while running:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if app_state == 'main_menu' and event.type == pygame.MOUSEBUTTONDOWN:
+                if space_play_button.collidepoint(event.pos):
+                    ok = await show_loading_screen("Loading Space Invader")
+                    if ok:
+                        pygame.mixer.music.stop()
+                        await run_space_arcade(screen, assets)
+                        pygame.mixer.music.load('assets/background_music_menu.mp3')
+                        pygame.mixer.music.play(-1)
+                if ttt_play_button.collidepoint(event.pos):
+                    ok = await show_loading_screen("Loading Ultimate Tic Tac Toe")
+                    if ok:
+                        pygame.mixer.music.stop()
+                        await run_tic_tac_toe(screen)
+                        pygame.mixer.music.load('assets/background_music_menu.mp3')
+                        pygame.mixer.music.play(-1)
 
         if app_state == 'main_menu':
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if space_play_button.collidepoint(event.pos):
-                    show_loading_screen_until_ready("Loading Space Invader...", run_space_arcade, screen, assets)
-                    app_state = 'main_menu'
-                if ttt_play_button.collidepoint(event.pos):
-                    show_loading_screen_until_ready("Loading Ultimate Tic Tac Toe...", run_tic_tac_toe, screen)
-                    app_state = 'main_menu'
+            screen.blit(assets['menu_background'], (0, 0))
+            screen.blit(title_text, title_rect)
+            screen.blit(assets['space_box'], space_box_rect)
+            screen.blit(assets['ttt_box'], ttt_box_rect)
 
-    if app_state == 'main_menu':
-        screen.blit(assets['menu_background'], (0, 0))
-        screen.blit(title_text, title_rect)
-        screen.blit(assets['space_box'], space_box_rect)
-        screen.blit(assets['ttt_box'], ttt_box_rect)
+        pygame.display.flip()
+        clock.tick(60)
+        await asyncio.sleep(0)
 
-    pygame.display.flip()
-    clock.tick(60)
+    pygame.quit()
 
-pygame.quit()
-sys.exit()
+if __name__ == "__main__":
+    asyncio.run(main())
